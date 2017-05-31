@@ -60,10 +60,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         // TODO: background color, sine wave animation
         // setup other threads, etc
 
-        // start playing sound
-//        while true
-//        do stuff
-
+        // TODO: play sound
 
     }
 

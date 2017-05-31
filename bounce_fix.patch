@@ -1,0 +1,8 @@
+Index: gradlew.bat
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- gradlew.bat	(date 1496190641000)
++++ gradlew.bat	(revision )
+@@ -1,0 +1,0 @@

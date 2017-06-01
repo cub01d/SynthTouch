@@ -54,7 +54,7 @@ public class BouncingBallView extends AppCompatImageView {
     public BouncingBallView(Context context) {
         super(context);
         // TODO: change colors
-        box = new BoundaryBox(0xff6699ff);  // ARGB
+        box = new BoundaryBox(android.R.color.transparent);  // ARGB
         ball = new Ball(Color.YELLOW);
 
         this.setFocusableInTouchMode(true);

@@ -5,13 +5,19 @@ import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioTrack;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
+import developer.shivam.library.WaveView;
 import edu.ucsb.ece150.synthtouch.ball.BouncingBallView;
 import edu.ucsb.ece150.synthtouch.ball.DrawingThread;
+import android.os.Handler;
+
 
 public class MainActivity extends Activity implements SensorEventListener {
 
@@ -27,17 +33,34 @@ public class MainActivity extends Activity implements SensorEventListener {
     private SensorManager mSensorManager;
     private Sensor mAccelerometer;
 
+    private WaveView wave;
+
+    double freq = 1000;
+
     // TODO: sine wave
 //    private WaveView wv;
 //    private DrawingThread waveDrawingThread;
     // TODO: background color change
 //    private DrawingThread backgroundColorThread;
 
+    Handler handler = new Handler();
+    // Define the code block to be executed
+    private Runnable runnableCode = new Runnable() {
+        @Override
+        public void run() {
+            playSound(freq , 44100/10);
+            Log.d("Handlers", "Called on main thread");
+            // Repeat this the same runnable code block again another 2 seconds
+            handler.postDelayed(runnableCode, 1);
+        }
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         FrameLayout fl = (FrameLayout) findViewById(R.id.frameLayout);
+
+        wave = (WaveView) findViewById(R.id.sample_wave_view);
 
         // set up accelerometer
         mSensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
@@ -56,6 +79,10 @@ public class MainActivity extends Activity implements SensorEventListener {
         fl.addView(bbv);
         ballDrawingThread = new DrawingThread(bbv, 50);
         ballDrawingThread.start();
+
+        handler.post(runnableCode);
+
+
 
         // TODO: background color, sine wave animation
         // setup other threads, etc
@@ -102,6 +129,38 @@ public class MainActivity extends Activity implements SensorEventListener {
         Log.e("onSensorChanged", "x: " + accel[1] + ", y: " + accel[0]);
 
         bbv.setAccel(accel[1], accel[0]);
+
+        //wave.setSpeed(bbv.getBallPosition()[0]/100);
+        wave.setSpeed(1);
+        wave.setAmplitude((int)bbv.getBallPosition()[1]/50);
+
+        freq = (double)bbv.getBallPosition()[0];
+    }
+
+    private void playSound(double frequency, int duration) {
+        // AudioTrack definition
+        int mBufferSize = AudioTrack.getMinBufferSize(44100,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_8BIT);
+
+        AudioTrack mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
+                AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
+                mBufferSize, AudioTrack.MODE_STREAM);
+
+        // Sine wave
+        double[] mSound = new double[4410];
+        short[] mBuffer = new short[duration];
+        for (int i = 0; i < mSound.length; i++) {
+            mSound[i] = Math.sin((2.0*Math.PI * i/(44100/frequency)));
+            mBuffer[i] = (short) (mSound[i]*Short.MAX_VALUE);
+        }
+
+        mAudioTrack.setStereoVolume(AudioTrack.getMaxVolume(), AudioTrack.getMaxVolume());
+        mAudioTrack.play();
+
+        mAudioTrack.write(mBuffer, 0, mSound.length);
+        mAudioTrack.stop();
+        mAudioTrack.release();
 
     }
 

@@ -21,8 +21,8 @@ class Ball {
     float y = radius + 40;
     float speedX = 10;       // Ball's speed (x,y)
     float speedY = 20;
-    float accelX = 0;
-    float accelY = 0;
+    private float accelX = 0;
+    private float accelY = 0;
     private RectF bounds;   // Needed for Canvas.drawOval
     private Paint paint;    // The paint style, color used for drawing
 
@@ -59,5 +59,13 @@ class Ball {
     void draw(Canvas canvas) {
         bounds.set(x-radius, y-radius, x+radius, y+radius);
         canvas.drawOval(bounds, paint);
+    }
+
+    public void setAccelX(float accelX) {
+        this.accelX = accelX;
+    }
+
+    public void setAccelY(float accelY) {
+        this.accelY = accelY;
     }
 }

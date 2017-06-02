@@ -7,7 +7,7 @@
     android:layout_height="match_parent"
     tools:context="edu.ucsb.ece150.synthtouch.MainActivity">
     <developer.shivam.library.WaveView
-        android:id="@+id/sample_wave_view"
+        android:id="@+id/waveview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         />

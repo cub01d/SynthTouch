@@ -14,39 +14,38 @@ import android.util.Log;
 import android.widget.FrameLayout;
 import android.widget.Toast;
 
-//import developer.shivam.library.WaveView;
 import developer.shivam.library.WaveView;
 import edu.ucsb.ece150.synthtouch.ball.BouncingBallView;
 import edu.ucsb.ece150.synthtouch.ball.DrawingThread;
-//import edu.ucsb.ece150.synthtouch.ball.SoundThread;
-
-import android.os.Handler;
-
 
 public class MainActivity extends Activity implements SensorEventListener {
+    // screen dimensions
     private int screenHeight;
-    private int screenWidth;
+    // ball properties
     private float ballX = 120f;
     private float ballY = 140f;
+    private BouncingBallView bbv;
+    private DrawingThread ballDrawingThread;
+    // sound properties
     private float amp = 1.0f;
     private float phase = 0.0f;
     private float freq = 1000;
-    private BouncingBallView bbv;
-    private DrawingThread ballDrawingThread;
+    private boolean running;
+    private Thread soundThread;
+    final int SAMPLE_RATE = 44100;
+    // wave animation
     private WaveView wave;
-    private final double SAMPLE_INTERVAL = 0.2;       // sample every SAMPLE_INTERVAL seconds
-    private Handler mHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        running = true;
         setContentView(R.layout.activity_main);
         FrameLayout fl = (FrameLayout) findViewById(R.id.frameLayout);
 
         DisplayMetrics displayMetrics = new DisplayMetrics();
         getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
         screenHeight = displayMetrics.heightPixels;
-        screenWidth = displayMetrics.widthPixels;
 
         // == bouncing ball ========================================================================
         float speedx = 0f;
@@ -74,84 +73,40 @@ public class MainActivity extends Activity implements SensorEventListener {
         wave.setSpeed(1);
 
         // == modulate the sound ===================================================================
-        mHandler = new Handler();
-        startSound();
-//        SoundThread soundThread;
-        // modulate the sound
-//        Point p = new Point();
-//        getWindowManager().getDefaultDisplay().getSize(p);
-//        soundThread = new SoundThread(p.x, TIME_DURATION);
-//        soundThread.start();
-//        Thread soundModulator = new Thread(new Runnable() {
-//        @Override
-//        public void run() {
-//            playSound(freq , 44100/10/*, phi*/);
-//            Log.d("Handlers", "Called on main thread");
-//            // Repeat this the same runnable code block again another 2 seconds
-//            handler.postDelayed(soundModulator, 1);
-//        }
-//    });
-//        Thread soundModulator = new Thread(new Runnable() {
-//            @Override
-//            public void run() {
-//                double freq = (double) ballX;
-//                double phase = (double)
-//            }
-//        }).start();
-//        updateThread.start();
-
-
-
-
-        // TODO: background color change
-        // private DrawingThread backgroundColorThread;
-    }
-
-    Runnable soundModulator = new Runnable() {
-        @Override
-        public void run() {
-            try {
-                float f = freq;             // freq may update while we are generating our wave
-                // AudioTrack definition
-                int mBufferSize = AudioTrack.getMinBufferSize(44100,
+        soundThread = new Thread() {
+            @Override
+            public void run() {
+                setPriority(Thread.MAX_PRIORITY);
+                int buffsize = AudioTrack.getMinBufferSize(SAMPLE_RATE,
                         AudioFormat.CHANNEL_OUT_MONO,
-                        AudioFormat.ENCODING_PCM_8BIT);
+                        AudioFormat.ENCODING_PCM_16BIT);
 
-                AudioTrack mAudioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, 44100,
+                AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC, SAMPLE_RATE,
                         AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT,
-                        mBufferSize, AudioTrack.MODE_STREAM);
+                        buffsize, AudioTrack.MODE_STREAM);
+                short samples[] = new short[buffsize];
+                int amp = 10000;
+                double twopi = 2 * Math.PI;
 
-                // generate our sine wave
-                double[] mSound = new double[(int) (SAMPLE_INTERVAL * 44100)];
-                short[] mBuffer = new short[(int) (SAMPLE_INTERVAL * 44100)];
+                // start audio
+                audioTrack.play();
 
-                for (int i = 0; i < mSound.length; i++) {
-                    mSound[i] = Math.sin(2.0*Math.PI * i/(44100/f) + phase);  // range: [-1, 1]
-                    mBuffer[i] = (short) (mSound[i]*Short.MAX_VALUE);
+                // synthesis loop
+                while (running) {
+                    float f = freq;
+                    for (int i = 0; i < buffsize; i++) {
+                        samples[i] = (short)(amp * Math.sin(phase));
+                        phase += twopi * f / SAMPLE_RATE;
+                        phase %= twopi;
+                    }
+                    audioTrack.write(samples, 0, buffsize);
+                    audioTrack.setVolume(MainActivity.this.getAmp() * AudioTrack.getMaxVolume());
                 }
-
-                // TODO: fix phase to avoid clicks
-//                phase = (float) ((f * SAMPLE_INTERVAL % 1) * f * 2 * Math.PI) + 20;
-                mAudioTrack.setVolume(amp * AudioTrack.getMaxVolume());
-                mAudioTrack.play();
-
-                mAudioTrack.write(mBuffer, 0, mSound.length, AudioTrack.WRITE_NON_BLOCKING);
-                mAudioTrack.stop();
-                mAudioTrack.release();
-
-            } finally {
-                // 100% guarantee that this always happens, even if
-                // your update method throws an exception
-                mHandler.postDelayed(soundModulator, (long) SAMPLE_INTERVAL * 1000);
+                audioTrack.stop();
+                audioTrack.release();
             }
-        }
-    };
-
-    void startSound() {
-        soundModulator.run();
-    }
-    void stopSound() {
-        mHandler.removeCallbacks(soundModulator);
+        };
+        soundThread.start();
     }
 
     @Override
@@ -160,16 +115,32 @@ public class MainActivity extends Activity implements SensorEventListener {
         ballDrawingThread.start();
     }
     @Override
-    public void onStop() {
-        super.onStop();
+    public void onDestroy() {
+        super.onDestroy();
+
+        // stop sound
+        running = false;
+        stopSound();
 
         // stop drawing threads
         ballDrawingThread.stop();
-        // backgroundColorThread.stop();
-
-        // stop sound
-        stopSound();
     }
+
+    public float getAmp() {
+        return amp;
+    }
+
+    void stopSound() {
+        try {
+            running = false;
+            soundThread.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            soundThread = null;
+        }
+    }
+
 
     // accelerometer SensorEventListener methods
     @Override
@@ -181,29 +152,27 @@ public class MainActivity extends Activity implements SensorEventListener {
         final float alpha = (float) 0.8;
         gravity[0] = alpha * gravity[0] + (1 - alpha) * event.values[0];
         gravity[1] = alpha * gravity[1] + (1 - alpha) * event.values[1];
-//        gravity[2] = alpha * gravity[2] + (1 - alpha) * event.values[2];
 
         // correct for gravity
         accel[0] = event.values[0] - gravity[0];
         accel[1] = event.values[1] - gravity[1];
-//        accel[2] = event.values[2] - gravity[2];
 
         // send accel info to bouncing ball
-        // ball should move right (+x) when accel[1] is positive (lifting up top edge of phone)
-        // ball should move left (-x) when accel[1] is negative (lifting up bottom edge of phone)
-        // ball should move up (-y) when accel[0] is negative (lifting up left edge of phone)
-        // ball should move down (+y) when accel[0] is positive (lifting up right edge of phone)
         ballX = bbv.getBallPosition()[0];
         ballY = bbv.getBallPosition()[1];
-        Log.e("ball coords:", "x: " + ballX + ", y: " + ballY);
 
+        // don't send accel info if finger is dragging the ball
         if (!bbv.isFingerDown()) {
             bbv.setAccel(accel[1], accel[0]);
         }
-        // set amplitude to y position
+
+        // set amplitude of wave animation, volume of sound to y position
+        amp = (screenHeight-ballY)/((float) screenHeight);
         wave.setAmplitude((int) (screenHeight-ballY)/100);
-        amp = (screenHeight-ballY)/screenHeight;
+
+        // set frequency of sound and speed of animation
         freq = 1000 + 2*ballX;
+        wave.setSpeed(freq/800);
     }
 
     @Override

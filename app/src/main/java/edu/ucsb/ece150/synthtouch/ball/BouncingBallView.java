@@ -23,14 +23,19 @@ import android.widget.ImageView;
 public class BouncingBallView extends AppCompatImageView {
     private Ball ball;
     private BoundaryBox box;
+    private boolean fingerDown;
+
+    public boolean isFingerDown() {
+        return fingerDown;
+    }
 
     // For touch inputs - previous touch (x, y)
     private float previousX;
     private float previousY;
 
     public void setAccel(float accelX, float accelY) {
-        ball.accelX = accelX;
-        ball.accelY = accelY;
+        ball.setAccelX(accelX);
+        ball.setAccelY(accelY);
     }
 
     public void setBallPosition(float x, float y){
@@ -54,8 +59,9 @@ public class BouncingBallView extends AppCompatImageView {
     public BouncingBallView(Context context) {
         super(context);
         // TODO: change colors
-        box = new BoundaryBox(0xff6699ff);  // ARGB
+        box = new BoundaryBox(android.R.color.transparent);  // ARGB
         ball = new Ball(Color.YELLOW);
+        fingerDown = false;
 
         this.setFocusableInTouchMode(true);
     }
@@ -81,12 +87,13 @@ public class BouncingBallView extends AppCompatImageView {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
+                fingerDown = true;
                 ball.x = currentX;
                 ball.y = currentY;
                 ball.speedX = 0.0f;
                 ball.speedY = 0.0f;
-                ball.accelX = 0.0f;
-                ball.accelY = 0.0f;
+                ball.setAccelX(0.0f);
+                ball.setAccelY(0.0f);
                 break;
 
             case MotionEvent.ACTION_MOVE:
@@ -97,8 +104,12 @@ public class BouncingBallView extends AppCompatImageView {
                 ball.y = currentY;
                 ball.speedX = deltaX;
                 ball.speedY = deltaY;
-                ball.accelX = 0.0f;
-                ball.accelY = 0.0f;
+                ball.setAccelX(0.0f);
+                ball.setAccelY(0.0f);
+                break;
+            case MotionEvent.ACTION_UP:
+                fingerDown = false;
+                break;
         }
 
         previousX = currentX;
